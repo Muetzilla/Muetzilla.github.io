@@ -6,14 +6,21 @@
 <script type="text/javascript" src="../javaScript/learningCanvas.js"></script>
 <link rel="stylesheet" type="text/css" href="../style/learningCanvasStyle.css" media="screen" />  
 </head>
-  <body onload="draw();">
-    Learning Canvas
+  <body>
+   <h1>Learning Canvas</h1>
+   <br>
+   <a href="../index.html">Home</a>
     <br>
     <br>
-    <button onclick="draw()">Repaint Canvas</button>
-    <br>
+    <h2>Grundlagen</h2>
+    <button onclick="draw()">Paint</button>
     <br>
     <br>
     <canvas id="canvas" width="150" height="150"></canvas>
+    <h2>Canvas Rectangles</h2>
+    <button onclick="drawRectangles()">Paint Rectangles</button>
+    <br>
+    <br>
+    <canvas id="canvasRectagles" width="150" height="150"></canvas>
   </body>
 </html>
