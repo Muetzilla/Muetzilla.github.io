@@ -7,11 +7,47 @@
 </head>
 <body>
 <div class="container">
-  <h1>GPX HR-Tag Entferner</h1>
-  <p>Lade eine GPX-Datei hoch, um alle &lt;hr&gt;-Tags zu entfernen.</p>
+  <h1>GPX Tag-Entferner</h1>
+  <p>Lade eine GPX-Datei hoch, um einzelne Tags zu entfernen und Metadaten zu ändern.</p>
   <input type="file" id="gpxFile" accept=".gpx">
-  <br>
-  <button onclick="processFile()">Datei bereinigen & herunterladen</button>
+
+  <div class="metadata">
+    <label>
+      Aktivitätsname:
+      <input type="text" id="activityName" placeholder="(Wird automatisch ausgefüllt)" oninput="clearNameWarning()">
+      <span id="nameWarning" class="warning" style="display:none;">Name der Aktivität fehlt in der Datei!</span>
+    </label>
+    <label>
+      Aktivitäts-Typ:
+      <select id="activityTypeSelect" onchange="handleTypeChange()">
+        <option value="">(Bitte wählen)</option>
+        <option value="walking">Laufen</option>
+        <option value="mountain_biking">Mountain Biking</option>
+        <option value="running">Joggen</option>
+        <option value="hiking">Wandern</option>
+        <option value="cycling">Radfahren</option>
+        <option value="custom">Benutzerdefiniert</option>
+      </select>
+      <input type="text" id="customType" placeholder="Benutzerdefinierter Typ" readonly style="display:none; margin-top:5px;">
+    </label>
+    <label>
+      Neuer Dateiname:
+      <input type="text" id="fileName" placeholder="z.B. lauf_fruehjahr">
+    </label>
+  </div>
+
+  <div class="main-grid">
+    <div class="tag-list">
+      <h2>Gefundene Tags</h2>
+      <ul id="tagList"></ul>
+    </div>
+    <div class="tag-select">
+      <h2>Entfernen</h2>
+      <form id="tagForm"></form>
+    </div>
+  </div>
+
+  <button onclick="cleanGPX()">Datei bereinigen & herunterladen</button>
 </div>
 
 <script src="../js/gpxProcessing.js"></script>
