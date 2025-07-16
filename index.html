@@ -1,72 +1,86 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
-    <title>Muetzilla</title>
-
-    <meta charset="utf-8"/>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.8.2/css/all.min.css">
-    <script src="js/navAjaxJS.js"></script>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5803699994314416"
-     crossorigin="anonymous"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Muetzilla | Developer & Creator</title>
+    <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-<header>
-    <nav class="nav">
-        <div class="container">
-            <div class="logo">
-                <a href="index.html">Muetzilla</a>
+<main>
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>Hi, I'm Muetzilla</h1>
+        <p>This is my Github website</p>
+        <button onclick="scrollToSection('projects')">Awesome projects</button>
+    </section>
+
+    <!-- Featured Projects -->
+    <section id="projects" class="section">
+        <h2>Featured Projects</h2>
+        <div class="card-grid">
+            <div class="card">
+                <h3>Project 1</h3>
+                <p>First of many awesome projects</p>
+                <a href="#">View on GitHub</a>
             </div>
-            <div id="mainListDiv" class="main_list">
-                <ul class="navlinks">
-                    <li><a href="pages/myWork.html">My work</a></li>
-                    <li><a href="pages/pixelart.html">Pixelart</a></li>
-                    <li><a href="pages/about.html">About</a></li>
-                    <li><a href="pages/gpxProcessing.html">GPX Processing</a></li>
-                </ul>
+            <div class="card">
+                <h3>Project 2</h3>
+                <p>Second of many awesome projects</p>
+                <a href="#">View on GitHub</a>
             </div>
-            <span class="navTrigger">
-                <i></i>
-                <i></i>
-                <i></i>
-            </span>
-        </div>
-    </nav>
-    <section class="home">
-        <div class="inner-header flex">
-            <p id="typewriterText" class="line-1 anim-typewriter">
-            <h1>Hey, this is my Github Website</h1></p>
+            <div class="card">
+                <h3>Project 3</h3>
+                <p>Third of many awesome projects</p>
+                <a href="#">View on GitHub</a>
+            </div>
         </div>
     </section>
 
+    <!-- Pixel Art Gallery -->
+    <!-- <section class="section gallery">
+        <h2>Pixel Art Gallery</h2>
+        <div class="gallery-grid">
+            <div class="pixel-art"></div>
+            <div class="pixel-art"></div>
+            <div class="pixel-art"></div>
+            <div class="pixel-art"></div>
+            <div class="pixel-art"></div>
+            <div class="pixel-art"></div>
+            <div class="pixel-art"></div>
+            <div class="pixel-art"></div>
+        </div>
+    </section>-->
 
-    <!-- Jquery needed -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
-    <script src="js/scripts.js"></script>
+    <!-- GPX Tool Section -->
+    <section class="section">
+        <h2>GPX Processing Tool</h2>
+        <p>Upload and manipulate your GPX tracks </p>
+        <button onclick="location.href='./pages/gpxProcessing.html'">Process your GPX file</button>
+    </section>
 
-    <!-- Function used to shrink nav bar removing paddings and adding black background -->
-    <script>
-        $(window).scroll(function () {
-            if ($(document).scrollTop() > 50) {
-                $('.nav').addClass('affix');
-                console.log("OK");
-            } else {
-                $('.nav').removeClass('affix');
-            }
-        });
-    </script>
-</header>
-<main>
-    <div class="container">
-        <br>
-        <a href="https://muetzilla.github.io/Learning-Canvas/"> learning Canvas </a>
-        <br>
-        <a href="https://muetzilla.github.io/Notenverwaltung/"> Notenverwaltung </a>
-    </div>
+    <!-- About Section -->
+    <section class="section about">
+        <h2>About Me</h2>
+        <p>Nothing here ATM</p>
+    </section>
+
+    <!-- Contact Section
+    <section class="section contact">
+        <h2>Let's Connect</h2>
+        <form>
+            <input type="text" placeholder="Your Name" required />
+            <input type="email" placeholder="Your Email" required />
+            <textarea placeholder="Your Message" rows="5" required></textarea>
+            <button type="submit">Send Message</button>
+        </form>
+    </section>-->
+
+    <!-- Footer -->
+    <footer>
+        <p>© 2025 Muetzilla — All rights reserved.</p>
+    </footer>
 </main>
-<footer>
-    Footer
-</footer>
+<script src="js/script.js"></script>
 </body>
 </html>
