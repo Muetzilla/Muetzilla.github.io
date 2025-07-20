@@ -63,7 +63,7 @@ function extractMetadata(text) {
 
     document.getElementById('fileName').value = nameMatch
         ? nameMatch[1].toLowerCase().replace(/\s+/g, '_')
-        : 'bereinigt' + formattedDate;
+        : 'bereinigt_' + formattedDate;
 
     const select = document.getElementById('activityTypeSelect');
     const customInput = document.getElementById('customType');
