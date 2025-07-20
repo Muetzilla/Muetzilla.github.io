@@ -58,9 +58,12 @@ function extractMetadata(text) {
         warning.style.display = 'inline';
     }
 
+    const now = new Date();
+    const formattedDate = now.toString().slice(0, 24);
+
     document.getElementById('fileName').value = nameMatch
         ? nameMatch[1].toLowerCase().replace(/\s+/g, '_')
-        : 'bereinigt';
+        : 'bereinigt' + formattedDate;
 
     const select = document.getElementById('activityTypeSelect');
     const customInput = document.getElementById('customType');
