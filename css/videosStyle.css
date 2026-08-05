@@ -1,0 +1,29 @@
+:root{
+    --bg:#0b0f14; --panel:#0f1621; --card:#121b28; --text:#e9f1fb; --muted:#9fb0c6; --border:#1e2a3a; --accent:#4da3ff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:var(--text);background:radial-gradient(1200px 800px at 20% -10%, #122033 0, var(--bg) 50%) no-repeat var(--bg)}
+  header{position:sticky;top:0;z-index:2;display:flex;gap:12px;align-items:center;justify-content:space-between;padding:18px clamp(16px,4vw,40px);background:linear-gradient(180deg, rgba(11,15,20,.9), rgba(11,15,20,.6));border-bottom:1px solid var(--border);backdrop-filter:blur(6px)}
+  h1{margin:0;font-size:clamp(20px,3vw,28px);letter-spacing:.2px}
+  .controls{display:flex;gap:10px;flex-wrap:wrap}
+  button{appearance:none;border:1px solid var(--border);background:linear-gradient(180deg,#172230,#101723);color:var(--text);border-radius:14px;padding:10px 14px;cursor:pointer;font-weight:600;letter-spacing:.2px;transition:transform .06s ease,border-color .15s ease,box-shadow .15s ease}
+  button:hover{border-color:#2a3a4f;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+  button:active{transform:translateY(1px)}
+
+  main{max-width:1700px;margin:0 auto;padding:24px clamp(16px,4vw,40px) 48px}
+  /* 3–4 pro Zeile: wächst responsiv, Karten größer */
+  .grid{display:grid;gap:22px;grid-template-columns:repeat(auto-fill,minmax(380px,1fr))}
+
+  .card{background:linear-gradient(180deg,var(--card),#0e141c);border:1px solid var(--border);border-radius:18px;overflow:hidden;box-shadow:0 14px 36px rgba(0,0,0,.3);display:flex;flex-direction:column}
+  .card:hover{transform:translateY(-2px);box-shadow:0 20px 48px rgba(0,0,0,.35)}
+
+  .thumb-wrap{position:relative;aspect-ratio:16/9;background:#0a0f15}
+  iframe,video{width:100%;height:100%;display:block}
+
+  .title{padding:12px 16px 16px;font-weight:800;letter-spacing:.2px}
+  .meta{padding:0 16px 16px;color:var(--muted);font-size:13px;display:flex;gap:12px;flex-wrap:wrap}
+  .badge{border:1px solid var(--border);border-radius:999px;padding:2px 8px}
+
+  .empty{opacity:.85;font-size:15px;color:var(--muted);text-align:center;padding:60px 20px}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:12px;border-top:1px solid var(--border)}
