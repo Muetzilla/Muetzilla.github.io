@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#111827" />
-  <title>FIT → Strava Cleaner</title>
+  <title>FIT Cleaner</title>
   <style>
     :root {
       color-scheme: light dark;
@@ -62,6 +62,24 @@
       color: #374151;
     }
     .small { font-size: .82rem; color: #6b7280; }
+    .option {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin: 0 0 16px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #f9fafb;
+      cursor: pointer;
+    }
+    .option input {
+      margin-top: 3px;
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+    }
+    .option strong { display: block; }
+    .option span { display: block; margin-top: 2px; }
     .ok { color: #047857 !important; }
     .error { color: #b91c1c !important; }
     @media (prefers-color-scheme: dark) {
@@ -69,6 +87,7 @@
       main { background: #151b2b; }
       p, .small { color: #aeb7c7; }
       #status { background: #0f1524; color: #d1d5db; }
+      .option { background: #0f1524; }
       .drop:hover { border-color: #f9fafb; }
       button { background: #f9fafb; color: #111827; }
     }
@@ -76,10 +95,9 @@
 </head>
 <body>
 <main>
-  <h1>Apple Watch → Strava FIT Cleaner</h1>
+  <h1>FIT Cleaner</h1>
   <p>
-    Removes heart-rate data and makes Strava identify the activity as recorded
-    with an <strong>Apple Watch Ultra 2</strong>.
+    Removes heart-rate data 
   </p>
 
   <label class="drop" for="file">
@@ -88,7 +106,18 @@
   </label>
   <input id="file" type="file" accept=".fit,application/octet-stream">
 
-  <button id="process" disabled>Clean & download FIT</button>
+  <label class="option">
+    <input id="removeHr" type="checkbox" checked>
+    <span>
+      <strong>Remove heart rate</strong>
+      <span class="small">
+        Uncheck this to keep heart-rate and time-in-zone data and only apply
+        the Apple Watch Ultra 2 device mapping.
+      </span>
+    </span>
+  </label>
+
+  <button id="process" disabled>Process & download FIT</button>
 
   <div id="status">Waiting for a FIT file.</div>
 
@@ -96,8 +125,8 @@
     Device mapping used: manufacturer 265, product 163.
     Intended for personal Strava imports.
   </p>
-    <button onclick="location.href='https://www.strava.com/upload/select'">Upload File</button>
 
+    <button onclick="location.href='https://www.strava.com/upload/select'">Upload File</button>
 </main>
 
 <script type="module">
@@ -120,6 +149,7 @@
   const fileInput = document.querySelector("#file");
   const fileLabel = document.querySelector("#fileLabel");
   const processButton = document.querySelector("#process");
+  const removeHrCheckbox = document.querySelector("#removeHr");
   const status = document.querySelector("#status");
 
   let selectedFile = null;
@@ -142,6 +172,8 @@
     status.textContent = "Reading and cleaning FIT file…";
 
     try {
+      const removeHr = removeHrCheckbox.checked;
+
       const inputBuffer = await selectedFile.arrayBuffer();
       const inputStream = Stream.fromArrayBuffer(inputBuffer);
 
@@ -182,7 +214,8 @@
 
       for (const [mesgNum, original] of orderedMessages) {
         // HR-zone/time-in-zone data can contain HR-derived information.
-        if (mesgNum === TIME_IN_ZONE) {
+        // Only remove it when HR removal is enabled.
+        if (removeHr && mesgNum === TIME_IN_ZONE) {
           removedZoneMessages++;
           continue;
         }
@@ -205,11 +238,13 @@
 
         // Strip every explicitly named heart-rate field, not only record HR.
         // This catches heartRate, avgHeartRate, maxHeartRate, minHeartRate, etc.
-        for (const key of Object.keys(mesg)) {
-          const normalized = key.replace(/[_\-\s]/g, "").toLowerCase();
-          if (normalized.includes("heartrate")) {
-            delete mesg[key];
-            removedHrFields++;
+        if (removeHr) {
+          for (const key of Object.keys(mesg)) {
+            const normalized = key.replace(/[_\-\s]/g, "").toLowerCase();
+            if (normalized.includes("heartrate")) {
+              delete mesg[key];
+              removedHrFields++;
+            }
           }
         }
 
@@ -296,7 +331,7 @@
         }
       });
 
-      if (remainingHrFields || remainingZoneMessages) {
+      if (removeHr && (remainingHrFields || remainingZoneMessages)) {
         throw new Error(
           `Privacy check failed: ${remainingHrFields} HR field(s) and ` +
           `${remainingZoneMessages} time-in-zone message(s) remain.`
@@ -313,7 +348,9 @@
       const a = document.createElement("a");
       const base = selectedFile.name.replace(/\.fit$/i, "");
       a.href = url;
-      a.download = `${base}-HR-free-Apple-Watch-Ultra-2.fit`;
+      a.download = removeHr
+        ? `${base}-HR-free-Apple-Watch-Ultra-2.fit`
+        : `${base}-Apple-Watch-Ultra-2.fit`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -323,10 +360,13 @@
       status.className = "ok";
       status.textContent =
         `✓ Valid FIT file\n` +
-        `✓ ${removedHrFields} heart-rate field(s) removed\n` +
-        `✓ ${removedZoneMessages} time-in-zone message(s) removed\n` +
+        (removeHr
+          ? `✓ ${removedHrFields} heart-rate field(s) removed\n` +
+            `✓ ${removedZoneMessages} time-in-zone message(s) removed\n` +
+            `✓ No HR fields remain after re-check\n`
+          : `✓ Heart-rate data preserved\n` +
+            `✓ Time-in-zone data preserved\n`) +
         `✓ ${removedDeveloperFields} developer field payload/definition(s) removed\n` +
-        `✓ No HR fields remain after re-check\n` +
         `✓ Apple Watch Ultra 2 mapping applied\n` +
         `✓ FIT integrity check passed\n\n` +
         `Download started. Upload the new file directly to Strava.`;
