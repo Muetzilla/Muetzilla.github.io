@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <title>FIT → Strava Cleaner</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #f3f4f6;
+      color: #111827;
+    }
+    main {
+      width: min(560px, 100%);
+      background: white;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.10);
+    }
+    h1 { margin: 0 0 6px; font-size: 1.55rem; }
+    p { line-height: 1.5; color: #4b5563; }
+    .drop {
+      display: block;
+      margin: 22px 0 14px;
+      padding: 28px 18px;
+      border: 2px dashed #9ca3af;
+      border-radius: 14px;
+      text-align: center;
+      cursor: pointer;
+    }
+    .drop:hover { border-color: #111827; }
+    input[type=file] { display: none; }
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      padding: 14px 18px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      background: #111827;
+      color: white;
+    }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    #status {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 12px;
+      background: #f9fafb;
+      white-space: pre-line;
+      font-size: .92rem;
+      color: #374151;
+    }
+    .small { font-size: .82rem; color: #6b7280; }
+    .ok { color: #047857 !important; }
+    .error { color: #b91c1c !important; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #0b1020; color: #f9fafb; }
+      main { background: #151b2b; }
+      p, .small { color: #aeb7c7; }
+      #status { background: #0f1524; color: #d1d5db; }
+      .drop:hover { border-color: #f9fafb; }
+      button { background: #f9fafb; color: #111827; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Apple Watch → Strava FIT Cleaner</h1>
+  <p>
+    Removes heart-rate data and makes Strava identify the activity as recorded
+    with an <strong>Apple Watch Ultra 2</strong>.
+  </p>
+
+  <label class="drop" for="file">
+    <strong id="fileLabel">Choose a .fit file</strong><br>
+    <span class="small">The file stays in your browser and is never uploaded.</span>
+  </label>
+  <input id="file" type="file" accept=".fit,application/octet-stream">
+
+  <button id="process" disabled>Clean & download FIT</button>
+
+  <div id="status">Waiting for a FIT file.</div>
+
+  <p class="small">
+    Device mapping used: manufacturer 265, product 163.
+    Intended for personal Strava imports.
+  </p>
+    <button onclick="location.href='https://www.strava.com/upload/select'">Upload File</button>
+
+</main>
+
+<script type="module">
+  import { Decoder, Encoder, Stream } from
+    "https://cdn.jsdelivr.net/npm/@garmin/fitsdk@21.214.0/+esm";
+
+  const FILE_ID = 0;
+  const SESSION = 18;
+  const LAP = 19;
+  const RECORD = 20;
+  const DEVICE_INFO = 23;
+  const DEVELOPER_DATA_ID = 206;
+  const FIELD_DESCRIPTION = 207;
+  const TIME_IN_ZONE = 216;
+
+  // The pair that made Strava display "Apple Watch Ultra 2" in our test.
+  const STRAVA_MANUFACTURER = 265;
+  const APPLE_WATCH_ULTRA_2_PRODUCT = 163;
+
+  const fileInput = document.querySelector("#file");
+  const fileLabel = document.querySelector("#fileLabel");
+  const processButton = document.querySelector("#process");
+  const status = document.querySelector("#status");
+
+  let selectedFile = null;
+
+  fileInput.addEventListener("change", () => {
+    selectedFile = fileInput.files?.[0] ?? null;
+    fileLabel.textContent = selectedFile ? selectedFile.name : "Choose a .fit file";
+    processButton.disabled = !selectedFile;
+    status.className = "";
+    status.textContent = selectedFile
+      ? "Ready. Nothing has been uploaded."
+      : "Waiting for a FIT file.";
+  });
+
+  processButton.addEventListener("click", async () => {
+    if (!selectedFile) return;
+
+    processButton.disabled = true;
+    status.className = "";
+    status.textContent = "Reading and cleaning FIT file…";
+
+    try {
+      const inputBuffer = await selectedFile.arrayBuffer();
+      const inputStream = Stream.fromArrayBuffer(inputBuffer);
+
+      if (!Decoder.isFIT(inputStream)) {
+        throw new Error("This does not look like a FIT file.");
+      }
+
+      const decoder = new Decoder(inputStream);
+      const orderedMessages = [];
+      let removedHrFields = 0;
+      let removedZoneMessages = 0;
+      let removedDeveloperFields = 0;
+
+      const result = decoder.read({
+        // Keep native numeric enum values so we can explicitly set 265 / 163.
+        // Keep the decoded objects in the format Garmin's Encoder expects.
+        // Expanded subfields/components and unknown raw fields are useful for
+        // analysis, but are not guaranteed to be re-encodable.
+        convertTypesToStrings: true,
+        convertDateTimesToDates: true,
+        applyScaleAndOffset: true,
+        expandSubFields: false,
+        expandComponents: false,
+        includeUnknownData: false,
+        mergeHeartRates: false,
+
+        // Listener preserves the original message order.
+        mesgListener: (mesgNum, mesg) => {
+          orderedMessages.push([mesgNum, structuredClone(mesg)]);
+        }
+      });
+
+      if (!orderedMessages.length) {
+        throw new Error("No FIT messages could be decoded.");
+      }
+
+      const encoder = new Encoder();
+
+      for (const [mesgNum, original] of orderedMessages) {
+        // HR-zone/time-in-zone data can contain HR-derived information.
+        if (mesgNum === TIME_IN_ZONE) {
+          removedZoneMessages++;
+          continue;
+        }
+
+        // Apple-exported FIT files can contain proprietary developer fields.
+        // Garmin's JS Encoder cannot reliably reconstruct these unless every
+        // developer field description is present and linked exactly as expected.
+        // They are not needed for Strava's core activity/device attribution.
+        if (mesgNum === DEVELOPER_DATA_ID || mesgNum === FIELD_DESCRIPTION) {
+          removedDeveloperFields++;
+          continue;
+        }
+
+        const mesg = { ...original };
+
+        if ("developerFields" in mesg) {
+          delete mesg.developerFields;
+          removedDeveloperFields++;
+        }
+
+        // Strip every explicitly named heart-rate field, not only record HR.
+        // This catches heartRate, avgHeartRate, maxHeartRate, minHeartRate, etc.
+        for (const key of Object.keys(mesg)) {
+          const normalized = key.replace(/[_\-\s]/g, "").toLowerCase();
+          if (normalized.includes("heartrate")) {
+            delete mesg[key];
+            removedHrFields++;
+          }
+        }
+
+        // Make Strava recognise the Apple Watch Ultra 2.
+        if (mesgNum === FILE_ID || mesgNum === DEVICE_INFO) {
+          mesg.manufacturer = STRAVA_MANUFACTURER;
+          mesg.product = APPLE_WATCH_ULTRA_2_PRODUCT;
+        }
+
+        try {
+          encoder.onMesg(mesgNum, mesg);
+        } catch (error) {
+          // FIT messages may contain BigInt values (for example serial numbers).
+          // Avoid JSON.stringify here because native JSON cannot serialize BigInt.
+          const safeDescribe = (value) => {
+            if (value == null) return "";
+            if (typeof value === "bigint") return value.toString();
+            if (value instanceof Error) {
+              return [value.name, value.message].filter(Boolean).join(": ");
+            }
+            if (typeof value === "object") {
+              try {
+                return JSON.stringify(
+                  value,
+                  (_key, v) => typeof v === "bigint" ? v.toString() : v,
+                  2
+                );
+              } catch {
+                return String(value);
+              }
+            }
+            return String(value);
+          };
+
+          const details = [
+            safeDescribe(error),
+            safeDescribe(error?.cause)
+          ].filter(Boolean).join("\n");
+
+          throw new Error(
+            `Garmin encoder could not write FIT message ${mesgNum}.` +
+            (details ? `\n${details}` : "")
+          );
+        }
+      }
+
+      const outputBytes = encoder.close();
+
+      // Validate the newly encoded FIT before offering it.
+      const checkStream = Stream.fromByteArray(Array.from(outputBytes));
+      const checkDecoder = new Decoder(checkStream);
+
+      if (!checkDecoder.isFIT() || !checkDecoder.checkIntegrity()) {
+        throw new Error("The cleaned file failed its FIT integrity check.");
+      }
+
+      let remainingHrFields = 0;
+      let remainingZoneMessages = 0;
+      let deviceSeen = false;
+
+      checkDecoder.read({
+        convertTypesToStrings: false,
+        expandSubFields: false,
+        expandComponents: false,
+        includeUnknownData: false,
+        mergeHeartRates: false,
+        mesgListener: (mesgNum, mesg) => {
+          if (mesgNum === TIME_IN_ZONE) remainingZoneMessages++;
+
+          for (const key of Object.keys(mesg)) {
+            const normalized = key.replace(/[_\-\s]/g, "").toLowerCase();
+            if (normalized.includes("heartrate") && mesg[key] != null) {
+              remainingHrFields++;
+            }
+          }
+
+          if (
+            (mesgNum === FILE_ID || mesgNum === DEVICE_INFO) &&
+            Number(mesg.manufacturer) === STRAVA_MANUFACTURER &&
+            Number(mesg.product) === APPLE_WATCH_ULTRA_2_PRODUCT
+          ) {
+            deviceSeen = true;
+          }
+        }
+      });
+
+      if (remainingHrFields || remainingZoneMessages) {
+        throw new Error(
+          `Privacy check failed: ${remainingHrFields} HR field(s) and ` +
+          `${remainingZoneMessages} time-in-zone message(s) remain.`
+        );
+      }
+
+      if (!deviceSeen) {
+        throw new Error("Apple Watch Ultra 2 device mapping was not preserved.");
+      }
+
+      const blob = new Blob([outputBytes], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      const base = selectedFile.name.replace(/\.fit$/i, "");
+      a.href = url;
+      a.download = `${base}-HR-free-Apple-Watch-Ultra-2.fit`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+
+      status.className = "ok";
+      status.textContent =
+        `✓ Valid FIT file\n` +
+        `✓ ${removedHrFields} heart-rate field(s) removed\n` +
+        `✓ ${removedZoneMessages} time-in-zone message(s) removed\n` +
+        `✓ ${removedDeveloperFields} developer field payload/definition(s) removed\n` +
+        `✓ No HR fields remain after re-check\n` +
+        `✓ Apple Watch Ultra 2 mapping applied\n` +
+        `✓ FIT integrity check passed\n\n` +
+        `Download started. Upload the new file directly to Strava.`;
+
+    } catch (err) {
+      console.error(err);
+      status.className = "error";
+      status.textContent = `Error: ${err?.message ?? err}`;
+    } finally {
+      processButton.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
