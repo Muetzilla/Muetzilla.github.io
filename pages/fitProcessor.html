@@ -183,6 +183,8 @@
 
       const decoder = new Decoder(inputStream);
       const orderedMessages = [];
+      let sourceRecordCount = 0;
+      let sourceMaxDistance = null;
       let removedHrFields = 0;
       let removedZoneMessages = 0;
       let removedDeveloperFields = 0;
@@ -203,6 +205,13 @@
         // Listener preserves the original message order.
         mesgListener: (mesgNum, mesg) => {
           orderedMessages.push([mesgNum, structuredClone(mesg)]);
+
+          if (mesgNum === RECORD) {
+            sourceRecordCount++;
+            if (Number.isFinite(mesg.distance)) {
+              sourceMaxDistance = Math.max(sourceMaxDistance ?? 0, mesg.distance);
+            }
+          }
         }
       });
 
@@ -211,6 +220,8 @@
       }
 
       const encoder = new Encoder();
+      let outputRecordCount = 0;
+      let outputMaxDistance = null;
 
       for (const [mesgNum, original] of orderedMessages) {
         // HR-zone/time-in-zone data can contain HR-derived information.
@@ -252,6 +263,15 @@
         if (mesgNum === FILE_ID || mesgNum === DEVICE_INFO) {
           mesg.manufacturer = STRAVA_MANUFACTURER;
           mesg.product = APPLE_WATCH_ULTRA_2_PRODUCT;
+        }
+
+        // Strava trusts summary distances when present. Keep them consistent
+        // with the actual record stream instead of preserving stale totals.
+        if (
+          sourceMaxDistance != null &&
+          (mesgNum === SESSION || mesgNum === LAP)
+        ) {
+          mesg.totalDistance = sourceMaxDistance;
         }
 
         try {
@@ -312,6 +332,13 @@
         includeUnknownData: false,
         mergeHeartRates: false,
         mesgListener: (mesgNum, mesg) => {
+          if (mesgNum === RECORD) {
+            outputRecordCount++;
+            if (Number.isFinite(mesg.distance)) {
+              outputMaxDistance = Math.max(outputMaxDistance ?? 0, mesg.distance);
+            }
+          }
+
           if (mesgNum === TIME_IN_ZONE) remainingZoneMessages++;
 
           for (const key of Object.keys(mesg)) {
@@ -342,6 +369,20 @@
         throw new Error("Apple Watch Ultra 2 device mapping was not preserved.");
       }
 
+      const distanceDifference = sourceMaxDistance == null || outputMaxDistance == null
+        ? 0
+        : Math.abs(sourceMaxDistance - outputMaxDistance);
+      if (
+        sourceRecordCount !== outputRecordCount ||
+        distanceDifference > Math.max(0.01, sourceMaxDistance * 0.001)
+      ) {
+        throw new Error(
+          `Track validation failed: ${sourceRecordCount} input record(s), ` +
+          `${outputRecordCount} output record(s), distance changed from ` +
+          `${sourceMaxDistance ?? "unknown"} to ${outputMaxDistance ?? "unknown"}.`
+        );
+      }
+
       const blob = new Blob([outputBytes], { type: "application/octet-stream" });
       const url = URL.createObjectURL(blob);
 
@@ -367,6 +408,7 @@
           : `✓ Heart-rate data preserved\n` +
             `✓ Time-in-zone data preserved\n`) +
         `✓ ${removedDeveloperFields} developer field payload/definition(s) removed\n` +
+        `✓ Track records and distance preserved\n` +
         `✓ Apple Watch Ultra 2 mapping applied\n` +
         `✓ FIT integrity check passed\n\n` +
         `Download started. Upload the new file directly to Strava.`;
