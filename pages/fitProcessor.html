@@ -185,6 +185,7 @@
       const orderedMessages = [];
       let sourceRecordCount = 0;
       let sourceMaxDistance = null;
+      const sourceSummaryDistances = [];
       let removedHrFields = 0;
       let removedZoneMessages = 0;
       let removedDeveloperFields = 0;
@@ -212,6 +213,13 @@
               sourceMaxDistance = Math.max(sourceMaxDistance ?? 0, mesg.distance);
             }
           }
+
+          if (
+            (mesgNum === SESSION || mesgNum === LAP) &&
+            Number.isFinite(mesg.totalDistance)
+          ) {
+            sourceSummaryDistances.push([mesgNum, mesg.totalDistance]);
+          }
         }
       });
 
@@ -222,6 +230,7 @@
       const encoder = new Encoder();
       let outputRecordCount = 0;
       let outputMaxDistance = null;
+      const outputSummaryDistances = [];
 
       for (const [mesgNum, original] of orderedMessages) {
         // HR-zone/time-in-zone data can contain HR-derived information.
@@ -263,15 +272,6 @@
         if (mesgNum === FILE_ID || mesgNum === DEVICE_INFO) {
           mesg.manufacturer = STRAVA_MANUFACTURER;
           mesg.product = APPLE_WATCH_ULTRA_2_PRODUCT;
-        }
-
-        // Strava trusts summary distances when present. Keep them consistent
-        // with the actual record stream instead of preserving stale totals.
-        if (
-          sourceMaxDistance != null &&
-          (mesgNum === SESSION || mesgNum === LAP)
-        ) {
-          mesg.totalDistance = sourceMaxDistance;
         }
 
         try {
@@ -339,6 +339,13 @@
             }
           }
 
+          if (
+            (mesgNum === SESSION || mesgNum === LAP) &&
+            Number.isFinite(mesg.totalDistance)
+          ) {
+            outputSummaryDistances.push([mesgNum, mesg.totalDistance]);
+          }
+
           if (mesgNum === TIME_IN_ZONE) remainingZoneMessages++;
 
           for (const key of Object.keys(mesg)) {
@@ -383,6 +390,20 @@
         );
       }
 
+      const summariesChanged =
+        sourceSummaryDistances.length !== outputSummaryDistances.length ||
+        sourceSummaryDistances.some(([mesgNum, distance], index) => {
+          const output = outputSummaryDistances[index];
+          return (
+            !output ||
+            output[0] !== mesgNum ||
+            Math.abs(output[1] - distance) > Math.max(0.01, distance * 0.001)
+          );
+        });
+      if (summariesChanged) {
+        throw new Error("Session or lap distance summaries changed during processing.");
+      }
+
       const blob = new Blob([outputBytes], { type: "application/octet-stream" });
       const url = URL.createObjectURL(blob);
 
@@ -408,7 +429,7 @@
           : `✓ Heart-rate data preserved\n` +
             `✓ Time-in-zone data preserved\n`) +
         `✓ ${removedDeveloperFields} developer field payload/definition(s) removed\n` +
-        `✓ Track records and distance preserved\n` +
+        `✓ Track records, laps and distance preserved\n` +
         `✓ Apple Watch Ultra 2 mapping applied\n` +
         `✓ FIT integrity check passed\n\n` +
         `Download started. Upload the new file directly to Strava.`;
